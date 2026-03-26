@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chobbarsocials — Video Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    /* Dark Mode (Default) */
+    --bg: #080810;
+    --surface: #0d0d1a;
+    --card: #11111f;
+    --border: rgba(255,255,255,0.07);
+    --accent: #c8ff00;
+    --accent2: #7b5ea7;
+    --text: #f0f0f0;
+    --muted: #666680;
+    --glow: rgba(200,255,0,0.18);
+    --nav-bg: rgba(8,8,16,0.8);
+  }
+
+  /* ── Light Mode Override ── */
+  [data-theme="light"] {
+    --bg: #f4f4f9;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --accent: #7b5ea7; 
+    --accent2: #c8ff00;
+    --text: #1a1a2e;
+    --muted: #555566;
+    --glow: rgba(123, 94, 167, 0.1);
+    --nav-bg: rgba(255,255,255,0.8);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+
+  /* ── Loader ── */
+  #loader {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #080810;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 0.6s cubic-bezier(0.77, 0, 0.175, 1);
+  }
+  .loader-content { text-align: center; }
+  .loader-pct {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 80px; color: var(--accent);
+    line-height: 1; margin-bottom: 10px;
+  }
+  .loader-bar {
+    width: 200px; height: 2px; background: rgba(255,255,255,0.1);
+    position: relative; overflow: hidden;
+  }
+  .loader-progress {
+    position: absolute; left: 0; top: 0; height: 100%;
+    width: 0%; background: var(--accent);
+    transition: width 0.4s ease;
+  }
+  body.loaded #loader { opacity: 0; pointer-events: none; }
+
+  /* ── Grid overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none; z-index: 0;
+  }
+  [data-theme="light"] body::before {
+    background-image:
+      linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+  }
+
+  .blob {
+    position: fixed; border-radius: 50%; filter: blur(120px);
+    pointer-events: none; z-index: 0; opacity: 0.35;
+  }
+  .blob-1 { width: 500px; height: 500px; background: #c8ff0022; top: -120px; left: -100px; }
+  .blob-2 { width: 400px; height: 400px; background: #7b5ea733; bottom: 200px; right: -80px; }
+  .blob-3 { width: 300px; height: 300px; background: #00bfff22; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+  .wrap { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Nav & Interactive Toggle ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 18px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--nav-bg); backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.1em; color: var(--accent); }
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+  .nav-tag { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; }
+
+  .theme-switch-wrap {
+    width: 56px; height: 28px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 50px;
+    position: relative; cursor: pointer; transition: 0.3s ease;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .theme-switch-wrap:hover { border-color: var(--accent); }
+  .theme-dot {
+    position: absolute; top: 3px; left: 4px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); 
+    transition: left 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.3s ease;
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+  .theme-switch-wrap:active .theme-dot { transform: scale(0.85); }
+  [data-theme="light"] .theme-dot { left: 30px; }
+
+  /* ── Transitions ── */
+  .cta-btn, .social-link, .software-card, .stat-box, .intro-image-wrap {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease !important;
+  }
+  .cta-btn:hover, .social-link:hover, .software-card:hover, .stat-box:hover {
+    transform: translateY(-8px) !important;
+  }
+
+  /* ── Hero ── */
+  .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 120px 0 80px; }
+  .hero-eyebrow {
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent);
+    border: 1px solid rgba(200,255,0,0.3); background: rgba(200,255,0,0.06); padding: 5px 14px; border-radius: 20px; margin-bottom: 28px;
+    display: inline-flex; align-items: center; gap: 8px; animation: fadeUp 0.6s ease both;
+  }
+  .hero-eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: blink 2s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .hero-name { font-family: 'Bebas Neue', sans-serif; font-size: clamp(72px, 14vw, 130px); line-height: 0.9; letter-spacing: 0.02em; color: var(--text); animation: fadeUp 0.6s 0.1s ease both; }
+  .hero-name span { color: var(--accent); }
+  .hero-title { font-size: clamp(16px, 3vw, 22px); font-weight: 300; color: var(--muted); margin: 20px 0 0; letter-spacing: 0.04em; animation: fadeUp 0.6s 0.2s ease both; }
+  .hero-desc { max-width: 520px; font-size: 15px; line-height: 1.8; color: var(--muted); margin: 22px 0 44px; animation: fadeUp 0.6s 0.3s ease both; }
+
+  /* ── Intro Section ── */
+  .intro-row { display: grid; grid-template-columns: 1fr 1.6fr; gap: 32px; align-items: center; margin-bottom: 80px; animation: fadeUp 0.7s 0.4s ease both; }
+  .intro-image-wrap { width: 100%; border-radius: 20px; overflow: hidden; position: relative; border: 1px solid var(--border); }
+  .intro-img { width: 100%; height: auto; display: block; object-fit: cover; }
+  .intro-text-wrap h1 { font-family: 'Bebas Neue', sans-serif; font-size: 42px; color: var(--text); }
+  .intro-text h2 { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 0.04em; color: var(--text); margin-bottom: 14px; }
+  .intro-text p { font-size: 14px; line-height: 1.85; color: var(--muted); margin-bottom: 24px; }
+
+  /* ── Skills & Software ── */
+  .section-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 32px; display: flex; align-items: center; gap: 14px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--accent), transparent); opacity: 0.3; }
+
+  .skills-section { margin-bottom: 100px; }
+  .skills-grid { display: flex; flex-direction: column; gap: 16px; }
+  .skill-row { display: grid; grid-template-columns: 160px 1fr 42px; gap: 14px; align-items: center; }
+  .skill-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .skill-track { height: 6px; background: rgba(255,255,255,0.06); border-radius: 6px; overflow: hidden; }
+  [data-theme="light"] .skill-track { background: rgba(0,0,0,0.06); }
+  .skill-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), #a3ff47); width: 0; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+  .skill-pct { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); text-align: right; }
+
+  .software-section { margin-bottom: 80px; }
+  .software-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+  .software-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 14px; text-align: center; }
+  .sw-icon { font-size: 32px; margin-bottom: 10px; }
+  .sw-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .sw-type { font-size: 10px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+  /* ── Socials ── */
+  .socials-section { margin-bottom: 80px; }
+  .socials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .social-link { display: flex; align-items: center; gap: 14px; padding: 18px 24px; border-radius: 20px; background: var(--card); border: 1px solid var(--border); text-decoration: none; color: inherit; }
+  .sl-icon-wrap { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: rgba(255,255,255,0.05); }
+  [data-theme="light"] .sl-icon-wrap { background: rgba(0,0,0,0.05); }
+  .sl-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .sl-handle { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+  /* ── CTA ── */
+  .cta-section { margin-bottom: 80px; }
+  .cta-desc { font-size: 14px; color: var(--muted); margin-bottom: 28px; max-width: 500px; line-height: 1.7; }
+  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .cta-btn { display: inline-flex; align-items: center; gap: 10px; padding: 16px 32px; border-radius: 12px; font-size: 15px; font-weight: 600; text-decoration: none; border: none; color: #fff; }
+  .btn-yt { background: #a73917; box-shadow: 0 4px 20px rgba(255,0,0,0.3); }
+  .btn-ig { background: linear-gradient(135deg, #f09433, #0d00ff); box-shadow: 0 4px 20px rgba(188,24,136,0.3); }
+
+  /* ── Footer ── */
+  footer { padding: 40px 0; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+  .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--accent); }
+  .footer-copy { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+  /* ── Reveal ── */
+  .reveal { opacity: 0; transform: translateY(30px); transition: 0.8s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  @media (max-width: 768px) { .intro-row { grid-template-columns: 1fr; } .hero-name { font-size: 80px; } }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-content">
+    <div class="loader-pct" id="loader-pct">00</div>
+    <div class="loader-bar">
+      <div class="loader-progress" id="loader-progress"></div>
+    </div>
+  </div>
+</div>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<nav>
+  <div class="nav-logo">SATSRIAKAAL</div>
+  <div class="nav-right">
+    <div class="nav-tag">KIDDA FIR?</div>
+    <div class="theme-switch-wrap" id="theme-switch">
+      <div class="theme-dot" id="theme-dot">☀️</div>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <section class="hero">
+    <div class="hero-eyebrow">Available for work</div>
+    <h1 class="hero-name">CHOBBAR<br><span>SYNCS</span></h1>
+    <p class="hero-title">Video Editor · Motion Designer · Video Content Creator</p>
+    <p class="hero-desc">
+      Crafting cinematic edits that hit different. From reels to long-form content — I transform raw footage into stories that stop the scroll.
+      <br/><br/>Through precise editing and thoughtful collaboration, I take your raw concepts and transform them into polished, professional results. Let’s make something worth watching.
+    </p>
+  </section>
+
+  <div class="intro-row">
+    <div class="intro-image-wrap">
+        <img src="https://i.pinimg.com/avif/736x/24/50/ae/2450ae8e176f03cef2b45e7a3e688157.avf" alt="Editor Profile" class="intro-img">
+    </div>
+    <div class="intro-text-wrap">
+        <h1>Your Vision, Refined.</h1>
+        <br/>
+        <p>I specialize in high-impact editing that brings stories to life. From cinematic sequences to precise social content, I turn raw footage into professional results.</p>
+    </div>
+  </div>
+
+  <section class="intro-text reveal">
+      <h2>Who Am I</h2>
+      <p>19-year-old editor from India, College Student. I've been obsessed with visual storytelling since 2021 — cutting, coloring, and compositing content that leaves an impression.</p>
+      <p>Whether it's a YouTube cinematic, an Instagram reel, or a brand video — I bring the same level of precision and passion to every frame.</p>
+  </section>
+
+  <section class="skills-section reveal">
+    <div class="section-label">Skills & Expertise</div>
+    <div class="skills-grid">
+      <div class="skill-row"><span class="skill-name">Video Editing</span><div class="skill-track"><div class="skill-fill" data-pct="92"></div></div><span class="skill-pct">92%</span></div>
+      <div class="skill-row"><span class="skill-name">Color Grading</span><div class="skill-track"><div class="skill-fill" data-pct="85"></div></div><span class="skill-pct">85%</span></div>
+      <div class="skill-row"><span class="skill-name">Motion Graphics</span><div class="skill-track"><div class="skill-fill" data-pct="80"></div></div><span class="skill-pct">80%</span></div>
+      <div class="skill-row"><span class="skill-name">Thumbnail Design</span><div class="skill-track"><div class="skill-fill" data-pct="88"></div></div><span class="skill-pct">88%</span></div>
+    </div>
+  </section>
+
+  <section class="software-section reveal">
+    <div class="section-label">Software I Use</div>
+    <div class="software-grid">
+      <div class="software-card"><div class="sw-icon">🎞️</div><div class="sw-name">Alight Motion</div><div class="sw-type">Editing</div></div>
+      <div class="software-card"><div class="sw-icon">✨</div><div class="sw-name">After Effects</div><div class="sw-type">Motion</div></div>
+      <div class="software-card"><div class="sw-icon">🎨</div><div class="sw-name">DaVinci Resolve</div><div class="sw-type">Color</div></div>
+      <div class="software-card"><div class="sw-icon">🖼️</div><div class="sw-name">Photoshop</div><div class="sw-type">Design</div></div>
+    </div>
+  </section>
+
+  <section class="socials-section reveal">
+    <div class="section-label">Find Me Online</div>
+    <div class="socials-grid">
+      <a href="https://youtube.com/@chobbarsyncs" target="_blank" class="social-link">
+        <div class="sl-icon-wrap"><svg viewBox="0 0 576 512" width="20" fill="currentColor"><path d="M549.7 124.1c-6.3-23.7-24.8-42.3-48.3-48.6C458.8 64 288 64 288 64S117.2 64 74.6 75.5c-23.5 6.3-42 24.9-48.3 48.6-11.4 42.9-11.4 132.3-11.4 132.3s0 89.4 11.4 132.3c6.3 23.7 24.8 41.5 48.3 47.8C117.2 448 288 448 288 448s170.8 0 213.4-11.5c23.5-6.3 42-24.2 48.3-47.8 11.4-42.9 11.4-132.3 11.4-132.3s0-89.4-11.4-132.3zm-317.5 213.5V174.4l144 81.6-144 81.6z"/></svg></div>
+        <div class="sl-info"><div class="sl-name">YouTube</div><div class="sl-handle">@daksh.edits</div></div>
+      </a>
+      <a href="https://instagram.com/chobbarsyncs" target="_blank" class="social-link">
+        <div class="sl-icon-wrap"><svg viewBox="0 0 448 512" width="20" fill="currentColor"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/></svg></div>
+        <div class="sl-info"><div class="sl-name">Instagram</div><div class="sl-handle">@chobbarsyncs</div></div>
+      </a>
+    </div>
+  </section>
+
+  <section class="cta-section reveal">
+    <div class="section-label">Let's Connect</div>
+    <p class="cta-desc">Love the work? Hit subscribe on YouTube for cinematic edits and content drops.</p>
+    <div class="cta-row">
+      <a href="https://youtube.com/@chobbarsyncs" target="_blank" class="cta-btn btn-yt">▶ Subscribe on YouTube</a>
+      <a href="https://instagram.com/chobbarsyncs" target="_blank" class="cta-btn btn-ig">📸 Follow on Instagram</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">DAKSH DANG</div>
+    <div class="footer-copy">© 2025 Daksh Dang. All rights reserved.</div>
+    <div class="footer-made">Changa Fir Agli Waari</div>
+  </footer>
+</div>
+
+<script>
+  // ── Loader Logic ──
+  window.addEventListener('load', () => {
+    const pct = document.getElementById('loader-pct');
+    const bar = document.getElementById('loader-progress');
+    let count = 0;
+    
+    const interval = setInterval(() => {
+      count++;
+      pct.textContent = count.toString().padStart(2, '0');
+      bar.style.width = count + '%';
+      
+      if(count === 100) {
+        clearInterval(interval);
+        setTimeout(() => {
+          document.body.classList.add('loaded');
+        }, 300);
+      }
+    }, 15);
+  });
+
+  // ── Theme Switch Logic ──
+  const themeBtn = document.getElementById('theme-switch');
+  const themeDot = document.getElementById('theme-dot');
+  
+  const updateToggleUI = (theme) => {
+    themeDot.textContent = theme === 'light' ? '🌙' : '☀️';
+  };
+
+  const storedTheme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', storedTheme);
+  updateToggleUI(storedTheme);
+
+  themeBtn.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateToggleUI(newTheme);
+  });
+
+  // ── Reveal & Skill Bars ──
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        entry.target.querySelectorAll('.skill-fill').forEach(f => {
+          f.style.width = f.dataset.pct + '%';
+        });
+      }
+    });
+  }, { threshold: 0.1 });
+
+  reveals.forEach(r => observer.observe(r));
+</script>
+</body>
+</html>
